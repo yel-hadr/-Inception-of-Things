@@ -1,0 +1,30 @@
+global:
+  edition: ce
+  hosts:
+    domain: localhost
+    https: false
+  ingress:
+    configureCertmanager: false
+    tls:
+      enabled: false
+  initialRootPassword:
+    secret: gitlab-root-password
+    key: password
+
+certmanager:
+  install: false
+
+gitlab-runner:
+  install: false
+
+prometheus:
+  install: false
+
+nginx-ingress:
+  enabled: true
+  controller:
+    service:
+      type: LoadBalancer
+
+registry:
+  enabled: false
