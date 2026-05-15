@@ -11,7 +11,9 @@ if systemctl is-active --quiet k3s; then
 else
     curl -sfL https://get.k3s.io | sh -s - server \
         --flannel-iface="${FLANNEL_IFACE}" \
-        --node-ip="${NODE_IP}"
+        --node-ip="${NODE_IP}" \
+        --advertise-address="${NODE_IP}" \
+        --tls-san="${NODE_IP}"
 fi
 
 echo "Waiting for K3s server node to become Ready..."

@@ -8,7 +8,17 @@ readonly FLANNEL_IFACE="eth1"
 export K3S_TOKEN K3S_URL="${K3S_SERVER_URL}"
 
 echo "Waiting for K3s server API at ${K3S_SERVER_URL}..."
-until curl -skf "${K3S_SERVER_URL}/readyz" >/dev/null; do
+for attempt in $(seq 1 120); do
+    if curl -sk --connect-timeout 2 --max-time 3 "${K3S_SERVER_URL}" >/dev/null; then
+        break
+    fi
+
+    if [ "${attempt}" -eq 120 ]; then
+        echo "Timed out waiting for K3s server API at ${K3S_SERVER_URL}"
+        echo "Check that yelhadrS is running and reachable from yelhadrSW on 192.168.56.110:6443"
+        exit 1
+    fi
+
     sleep 3
 done
 
