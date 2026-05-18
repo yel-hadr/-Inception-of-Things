@@ -28,3 +28,27 @@ nginx-ingress:
 
 registry:
   enabled: false
+
+gitlab:
+  webservice:
+    resources:
+      requests:
+        memory: 512Mi
+  sidekiq:
+    resources:
+      requests:
+        memory: 256Mi
+  gitaly:
+    resources:
+      requests:
+        memory: 256Mi
+
+redis:
+  resources:
+    requests:
+      memory: 64Mi
+
+postgresql:
+  resources:
+    requests:
+      memory: 256Mi

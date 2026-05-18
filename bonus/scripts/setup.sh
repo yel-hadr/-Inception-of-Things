@@ -6,8 +6,12 @@ ROOT_PASSWORD="${GITLAB_ROOT_PASSWORD:-Password42!}"
 GITLAB_TOKEN="${GITLAB_TOKEN:-iot-bonus-token-42}"
 GITLAB_HOST="gitlab.localhost"
 GITLAB_URL="http://${GITLAB_HOST}:8081"
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(realpath "$0")")/.." && pwd)"
 WORKDIR="/tmp/iot-bonus-playground"
+
+echo "[INFO] Installing dependencies..."
+apt-get update -qq
+apt-get install -y -qq curl git
 
 install_docker() {
   echo "[INFO] Installing Docker..."
