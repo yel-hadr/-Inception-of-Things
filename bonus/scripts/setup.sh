@@ -111,7 +111,7 @@ install_gitea() {
     --timeout 10m
 
   echo "[INFO] Waiting for Gitea to be ready..."
-  kubectl rollout status statefulset/gitea -n gitea --timeout=600s
+  kubectl rollout status deployment/gitea -n gitea --timeout=600s
 }
 
 bootstrap_gitea_repo() {
