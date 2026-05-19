@@ -1,7 +1,6 @@
-SHELL := /bin/sh
-
 .PHONY: help \
 	p1 p2 p3 bonus \
+	docker-files docker-build \
 	check check-files check-p1 check-p2 check-p3 check-bonus \
 	verify verify-p1 verify-p2 verify-p3 verify-bonus \
 	clean clean-p1 clean-p2 clean-p3 clean-bonus \
@@ -17,6 +16,8 @@ help:
 	@echo "  make p2            Start Part 2 Vagrant cluster"
 	@echo "  make p3            Start Part 3 K3d/Argo CD flow"
 	@echo "  make bonus         Start bonus K3d/Gitea/Argo CD flow"
+	@echo "  make docker-files  Generate Dockerfile, .dockerignore, and docker-compose.yml"
+	@echo "  make docker-build  Generate Docker files and build the runner image"
 	@echo ""
 	@echo "Check:"
 	@echo "  make check-p1      Check Part 1 nodes"
@@ -44,23 +45,32 @@ p1:
 p2:
 	cd p2 && vagrant up
 
-p3: clean-bonus
+p3: docker-files clean-bonus
 	docker compose run --rm p3
 
-bonus: clean-p3
+bonus: docker-files clean-p3
 	docker compose run --rm bonus
+
+docker-files:
+	$(file >Dockerfile,$(DOCKERFILE_CONTENT))
+	$(file >.dockerignore,$(DOCKERIGNORE_CONTENT))
+	$(file >docker-compose.yml,$(DOCKER_COMPOSE_CONTENT))
+	@echo "Generated Dockerfile, .dockerignore, and docker-compose.yml."
+
+docker-build: docker-files
+	docker compose build
 
 check: check-files
 
 check-files:
-	@test -f p1/Vagrantfile
-	@test -f p2/Vagrantfile
-	@test ! -f p3/Vagrantfile
-	@test ! -f bonus/Vagrantfile
-	@test -f p3/scripts/setup.sh
-	@test -f bonus/scripts/setup.sh
-	@test -f docker-compose.yml
-	@test -f Dockerfile
+	$(if $(wildcard p1/Vagrantfile),,$(error Missing p1/Vagrantfile))
+	$(if $(wildcard p2/Vagrantfile),,$(error Missing p2/Vagrantfile))
+	$(if $(wildcard p3/Vagrantfile),$(error p3/Vagrantfile should not exist),)
+	$(if $(wildcard bonus/Vagrantfile),$(error bonus/Vagrantfile should not exist),)
+	$(if $(wildcard p3/scripts/setup.sh),,$(error Missing p3/scripts/setup.sh))
+	$(if $(wildcard bonus/scripts/setup.sh),,$(error Missing bonus/scripts/setup.sh))
+	$(if $(wildcard docker-compose.yml),,$(error Missing docker-compose.yml))
+	$(if $(wildcard Dockerfile),,$(error Missing Dockerfile))
 	@echo "File layout checks passed."
 
 check-p1:
@@ -110,10 +120,10 @@ clean-p2:
 	cd p2 && vagrant destroy -f
 
 clean-p3:
-	docker compose run --rm p3 k3d cluster delete iotcluster || true
+	-docker compose run --rm p3 k3d cluster delete iotcluster
 
 clean-bonus:
-	docker compose run --rm bonus k3d cluster delete iotbonus || true
+	-docker compose run --rm bonus k3d cluster delete iotbonus
 
 status: status-p1 status-p2 status-k3d
 
@@ -125,3 +135,90 @@ status-p2:
 
 status-k3d:
 	docker compose run --rm p3 k3d cluster list
+
+define DOCKERFILE_CONTENT
+FROM debian:bookworm-slim
+
+ARG K3D_VERSION=v5.8.3
+ARG KUBECTL_VERSION=v1.30.14
+ARG HELM_VERSION=v3.18.6
+ARG DOCKER_CLI_VERSION=27.5.1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      curl \
+      git \
+      gnupg \
+      iproute2 \
+      iptables \
+      procps \
+      uidmap \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-$${DOCKER_CLI_VERSION}.tgz" \
+    | tar -xz -C /usr/local/bin --strip-components=1 docker/docker \
+    && chmod +x /usr/local/bin/docker
+
+RUN curl -fsSL "https://dl.k8s.io/release/$${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+    -o /usr/local/bin/kubectl \
+    && chmod +x /usr/local/bin/kubectl
+
+RUN curl -fsSL "https://github.com/k3d-io/k3d/releases/download/$${K3D_VERSION}/k3d-linux-amd64" \
+    -o /usr/local/bin/k3d \
+    && chmod +x /usr/local/bin/k3d
+
+RUN curl -fsSL "https://get.helm.sh/helm-$${HELM_VERSION}-linux-amd64.tar.gz" \
+    | tar -xz -C /tmp \
+    && mv /tmp/linux-amd64/helm /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm \
+    && rm -rf /tmp/linux-amd64
+
+WORKDIR /workspace
+
+CMD ["bash"]
+endef
+
+define DOCKERIGNORE_CONTENT
+.git
+.venv
+.qodo
+**/.vagrant
+endef
+
+define DOCKER_COMPOSE_CONTENT
+services:
+  p3:
+    build: .
+    image: iot-k3d-runner:latest
+    network_mode: host
+    privileged: true
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+      - iot-kube:/root/.kube
+      - iot-k3d:/root/.config/k3d
+    command: ["bash", "p3/scripts/setup.sh"]
+
+  bonus:
+    build: .
+    image: iot-k3d-runner:latest
+    network_mode: host
+    privileged: true
+    working_dir: /workspace
+    environment:
+      GITEA_ADMIN_USER: $${GITEA_ADMIN_USER:-gitea_admin}
+      GITEA_ADMIN_PASSWORD: $${GITEA_ADMIN_PASSWORD:-Password42!}
+      GITEA_ADMIN_EMAIL: $${GITEA_ADMIN_EMAIL:-admin@gitea.local}
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+      - iot-kube:/root/.kube
+      - iot-k3d:/root/.config/k3d
+    command: ["bash", "bonus/scripts/setup.sh"]
+
+volumes:
+  iot-kube:
+  iot-k3d:
+endef
