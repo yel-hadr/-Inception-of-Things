@@ -1,6 +1,6 @@
 .PHONY: help \
 	p1 p2 p3 bonus \
-	refresh-p3 refresh-bonus argocd-ui argocd-password \
+	use-k3d refresh-p3 refresh-bonus argocd-ui argocd-password \
 	check check-files check-subject check-p1 check-p2 check-p3 check-bonus \
 	verify verify-p1 verify-p2 verify-p3 verify-bonus \
 	clean clean-p1 clean-p2 clean-p3 clean-bonus \
@@ -55,17 +55,41 @@ p3: clean-bonus
 bonus: clean-p3
 	sudo bash bonus/scripts/setup.sh
 
+use-k3d:
+	@if k3d cluster list 2>/dev/null | grep -q '^iotcluster\b'; then \
+		k3d kubeconfig merge iotcluster --kubeconfig-switch-context >/dev/null; \
+		kubectl config set-cluster k3d-iotcluster --server=https://127.0.0.1:6550 >/dev/null; \
+	elif k3d cluster list 2>/dev/null | grep -q '^iotbonus\b'; then \
+		k3d kubeconfig merge iotbonus --kubeconfig-switch-context >/dev/null; \
+		kubectl config set-cluster k3d-iotbonus --server=https://127.0.0.1:6551 >/dev/null; \
+	else \
+		echo "No K3d cluster found. Run 'make p3' or 'make bonus' first."; \
+		exit 1; \
+	fi
+
 refresh-p3:
-	kubectl annotate application playground -n argocd argocd.argoproj.io/refresh=hard --overwrite
+	@KUBECONFIG="$$(k3d kubeconfig write iotcluster)"; \
+	kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotcluster --server=https://127.0.0.1:6550 >/dev/null; \
+	kubectl --kubeconfig "$$KUBECONFIG" annotate application playground -n argocd argocd.argoproj.io/refresh=hard --overwrite
 
 refresh-bonus:
-	kubectl annotate application playground-gitea -n argocd argocd.argoproj.io/refresh=hard --overwrite
+	@KUBECONFIG="$$(k3d kubeconfig write iotbonus)"; \
+	kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotbonus --server=https://127.0.0.1:6551 >/dev/null; \
+	kubectl --kubeconfig "$$KUBECONFIG" annotate application playground-gitea -n argocd argocd.argoproj.io/refresh=hard --overwrite
 
 argocd-ui:
-	kubectl port-forward svc/argocd-server -n argocd 8080:443
+	@KUBECONFIG="$$(if k3d cluster list 2>/dev/null | grep -q '^iotcluster\b'; then k3d kubeconfig write iotcluster; elif k3d cluster list 2>/dev/null | grep -q '^iotbonus\b'; then k3d kubeconfig write iotbonus; else echo ""; fi)"; \
+	if [ -z "$$KUBECONFIG" ]; then echo "No K3d cluster found. Run 'make p3' or 'make bonus' first."; exit 1; fi; \
+	if grep -q 'name: k3d-iotcluster' "$$KUBECONFIG"; then kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotcluster --server=https://127.0.0.1:6550 >/dev/null; fi; \
+	if grep -q 'name: k3d-iotbonus' "$$KUBECONFIG"; then kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotbonus --server=https://127.0.0.1:6551 >/dev/null; fi; \
+	kubectl --kubeconfig "$$KUBECONFIG" port-forward svc/argocd-server -n argocd 8080:443
 
 argocd-password:
-	kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+	@KUBECONFIG="$$(if k3d cluster list 2>/dev/null | grep -q '^iotcluster\b'; then k3d kubeconfig write iotcluster; elif k3d cluster list 2>/dev/null | grep -q '^iotbonus\b'; then k3d kubeconfig write iotbonus; else echo ""; fi)"; \
+	if [ -z "$$KUBECONFIG" ]; then echo "No K3d cluster found. Run 'make p3' or 'make bonus' first."; exit 1; fi; \
+	if grep -q 'name: k3d-iotcluster' "$$KUBECONFIG"; then kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotcluster --server=https://127.0.0.1:6550 >/dev/null; fi; \
+	if grep -q 'name: k3d-iotbonus' "$$KUBECONFIG"; then kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotbonus --server=https://127.0.0.1:6551 >/dev/null; fi; \
+	kubectl --kubeconfig "$$KUBECONFIG" -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
 	@echo ""
 
 check: check-files check-subject
@@ -106,17 +130,21 @@ check-p2:
 	curl -H "Host: anything.local" http://192.168.56.110
 
 check-p3:
-	kubectl wait --for=condition=available deployment/playground -n dev --timeout=300s
-	kubectl get application playground -n argocd
-	kubectl get pods -n dev -o wide
+	@KUBECONFIG="$$(k3d kubeconfig write iotcluster)"; \
+	kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotcluster --server=https://127.0.0.1:6550 >/dev/null; \
+	kubectl --kubeconfig "$$KUBECONFIG" wait --for=condition=available deployment/playground -n dev --timeout=300s
+	@KUBECONFIG="$$(k3d kubeconfig write iotcluster)"; kubectl --kubeconfig "$$KUBECONFIG" get application playground -n argocd
+	@KUBECONFIG="$$(k3d kubeconfig write iotcluster)"; kubectl --kubeconfig "$$KUBECONFIG" get pods -n dev -o wide
 	curl http://localhost:8888/
 
 check-bonus:
-	kubectl wait --for=condition=available deployment/gitea -n gitea --timeout=300s
-	kubectl wait --for=condition=available deployment/playground -n dev --timeout=300s
-	kubectl get application playground-gitea -n argocd
-	kubectl get pods -n gitea
-	kubectl get pods -n dev -o wide
+	@KUBECONFIG="$$(k3d kubeconfig write iotbonus)"; \
+	kubectl --kubeconfig "$$KUBECONFIG" config set-cluster k3d-iotbonus --server=https://127.0.0.1:6551 >/dev/null; \
+	kubectl --kubeconfig "$$KUBECONFIG" wait --for=condition=available deployment/gitea -n gitea --timeout=300s
+	@KUBECONFIG="$$(k3d kubeconfig write iotbonus)"; kubectl --kubeconfig "$$KUBECONFIG" wait --for=condition=available deployment/playground -n dev --timeout=300s
+	@KUBECONFIG="$$(k3d kubeconfig write iotbonus)"; kubectl --kubeconfig "$$KUBECONFIG" get application playground-gitea -n argocd
+	@KUBECONFIG="$$(k3d kubeconfig write iotbonus)"; kubectl --kubeconfig "$$KUBECONFIG" get pods -n gitea
+	@KUBECONFIG="$$(k3d kubeconfig write iotbonus)"; kubectl --kubeconfig "$$KUBECONFIG" get pods -n dev -o wide
 	curl -I http://gitea.localhost:8081/
 	curl http://localhost:8888/
 
