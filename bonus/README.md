@@ -7,6 +7,10 @@ dedicated K3d cluster, installs Gitea in a `gitea` namespace, creates a local
 Gitea project, pushes the playground manifest into that project, and configures
 Argo CD to sync from Gitea instead of GitHub.
 
+Gitea is intentionally used instead of GitLab here because GitLab is too heavy
+for many laptops and lab VMs. The GitOps behavior remains the same: Argo CD
+watches a Git repository and reconciles the `dev` namespace from it.
+
 The subject requires:
 
 - A local Gitea instance.
@@ -56,6 +60,18 @@ The script also adds this hosts entry when missing:
 ```text
 127.0.0.1 gitea.localhost
 ```
+
+## Run With Docker
+
+From the repository root, you can also run the bonus through the shared Docker
+runner:
+
+```bash
+docker compose run --rm bonus
+```
+
+The runner mounts `/var/run/docker.sock` from the host VM, so Docker must already
+be installed and running on that VM.
 
 ## Gitea Credentials
 

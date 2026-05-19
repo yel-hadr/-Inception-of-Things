@@ -2,7 +2,7 @@
 
 This repository contains the four parts of the 42 `Inception-of-Things` project.
 The subject asks for all mandatory work to be split at the repository root into
-`p1`, `p2`, and `p3`, with the optional GitLab work in `bonus`.
+`p1`, `p2`, and `p3`, with the optional local Gitea GitOps work in `bonus`.
 
 ## Subject Summary
 
@@ -11,8 +11,9 @@ The subject asks for all mandatory work to be split at the repository root into
   three web applications through Ingress using host-based routing.
 - `p3`: use K3d instead of Vagrant, install Argo CD, and let Argo CD deploy a
   versioned application from a public Git repository.
-- `bonus`: add a local GitLab instance and make the Part 3 GitOps flow work from
-  that local GitLab repository.
+- `bonus`: add a local Gitea instance and make the Part 3 GitOps flow work from
+  that local Gitea repository. Gitea is used instead of GitLab because it is much
+  lighter for laptop-sized environments.
 
 ## Repository Layout
 
@@ -47,6 +48,23 @@ tools required by each part:
 - Helm for `bonus`.
 
 The setup scripts install several tools automatically when they are missing.
+
+## Docker Runner for P3 and Bonus
+
+If you already have Docker available on a Linux VM, you can run the K3d/Argo CD
+parts through the provided Docker image instead of installing kubectl, K3d, and
+Helm directly on the VM. The container uses the host Docker socket so K3d can
+create Kubernetes nodes as Docker containers.
+
+```bash
+docker compose run --rm p3
+docker compose run --rm bonus
+```
+
+The compose file exposes the same ports as the scripts:
+
+- `http://localhost:8888` for the playground app.
+- `http://gitea.localhost:8081` for the bonus Gitea UI.
 
 ## Evaluation Order
 
