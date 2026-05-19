@@ -55,9 +55,6 @@ The root `Makefile` gives one command surface for running, checking, and cleanin
 each part:
 
 ```bash
-make docker-files
-make docker-build
-
 make p1
 make p2
 make p3
@@ -74,10 +71,6 @@ make clean-p3
 make clean-bonus
 ```
 
-`make docker-files` generates the root `Dockerfile`, `.dockerignore`, and
-`docker-compose.yml` used by `make p3` and `make bonus`. `make docker-build`
-generates those files and builds the shared runner image.
-
 `p3` and `bonus` both expose `localhost:8888`, so `make p3` removes the bonus
 K3d cluster first, and `make bonus` removes the P3 K3d cluster first.
 
@@ -91,23 +84,6 @@ make verify
 
 `make verify` runs every part in order and cleans between conflicting parts, so
 expect it to take a while.
-
-## Docker Runner for P3 and Bonus
-
-If you already have Docker available on a Linux VM, you can run the K3d/Argo CD
-parts through the provided Docker image instead of installing kubectl, K3d, and
-Helm directly on the VM. The container uses the host Docker socket so K3d can
-create Kubernetes nodes as Docker containers.
-
-```bash
-docker compose run --rm p3
-docker compose run --rm bonus
-```
-
-The compose file exposes the same ports as the scripts:
-
-- `http://localhost:8888` for the playground app.
-- `http://gitea.localhost:8081` for the bonus Gitea UI.
 
 ## Evaluation Order
 
