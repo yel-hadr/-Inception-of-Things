@@ -1,37 +1,38 @@
-# Bonus - Local GitLab GitOps
+# Bonus - Local Gitea GitOps
 
 ## Goal
 
-The bonus adds a local GitLab instance to the Part 3 GitOps setup. It creates a
-dedicated K3d cluster, installs GitLab CE in a `gitlab` namespace, creates a local
-GitLab project, pushes the playground manifest into that project, and configures
-Argo CD to sync from GitLab instead of GitHub.
+The bonus adds a local Gitea instance to the Part 3 GitOps setup. It creates a
+dedicated K3d cluster, installs Gitea in a `gitea` namespace, creates a local
+Gitea project, pushes the playground manifest into that project, and configures
+Argo CD to sync from Gitea instead of GitHub.
 
 The subject requires:
 
-- A local GitLab instance.
-- A dedicated `gitlab` namespace.
-- GitLab connected to the cluster.
-- The Part 3 Argo CD workflow working from the local GitLab repository.
+- A local Gitea instance.
+- A dedicated `gitea` namespace.
+- Gitea connected to the cluster.
+- The Part 3 Argo CD workflow working from the local Gitea repository.
 
 ## Files
 
 ```text
 bonus/
 +-- confs/
-|   +-- application-gitlab.yaml
+|   +-- application-gitea.yaml
 |   +-- deployment.yaml
-|   +-- gitlab-values.yaml
+|   +-- gitea-values.yaml
 +-- scripts/
     +-- setup.sh
 ```
 
 - `scripts/setup.sh` installs Docker, kubectl, K3d, and Helm when missing, creates
-  the `iotbonus` cluster, installs Argo CD, installs GitLab, bootstraps a
-  `root/playground` project, and applies the Argo CD Application.
-- `confs/gitlab-values.yaml` configures the GitLab Helm chart for local HTTP use.
+  the `iotbonus` cluster, installs Argo CD, installs Gitea, bootstraps a
+  `gitea_admin/playground` project, and applies the Argo CD Application.
+- `confs/gitea-values.yaml` configures the Gitea Helm chart for local HTTP use
+  (SQLite, in-memory cache, Traefik ingress).
 - `confs/deployment.yaml` contains the initial `wil42/playground:v1` deployment.
-- `confs/application-gitlab.yaml` points Argo CD to the in-cluster GitLab service.
+- `confs/application-gitea.yaml` points Argo CD to the in-cluster Gitea service.
 
 ## How To Run
 
@@ -41,35 +42,34 @@ Run from the repository root inside your VM, WSL, or Linux environment:
 sudo bash bonus/scripts/setup.sh
 ```
 
-GitLab is heavy. The first install can take 10 to 20 minutes and needs several GB
-of RAM.
+Gitea is light. The first install usually finishes in a couple of minutes.
 
 The script creates a K3d cluster named `iotbonus` and exposes:
 
 ```text
 http://localhost:8888          playground application
-http://gitlab.localhost:8081   GitLab UI
+http://gitea.localhost:8081    Gitea UI
 ```
 
 The script also adds this hosts entry when missing:
 
 ```text
-127.0.0.1 gitlab.localhost
+127.0.0.1 gitea.localhost
 ```
 
-## GitLab Credentials
+## Gitea Credentials
 
 Default credentials used by the script:
 
 ```text
-username: root
+username: gitea_admin
 password: Password42!
 ```
 
-You can override the root password before running the script:
+You can override the admin password before running the script:
 
 ```bash
-export GITLAB_ROOT_PASSWORD="your-password"
+export GITEA_ADMIN_PASSWORD="your-password"
 sudo -E bash bonus/scripts/setup.sh
 ```
 
@@ -78,7 +78,7 @@ sudo -E bash bonus/scripts/setup.sh
 ```bash
 kubectl get ns
 kubectl get application -n argocd
-kubectl get pods -n gitlab
+kubectl get pods -n gitea
 kubectl get pods -n dev
 curl http://localhost:8888/
 ```
@@ -89,15 +89,15 @@ Expected initial application response:
 {"status":"ok", "message": "v1"}
 ```
 
-## Demonstrate GitOps From GitLab
+## Demonstrate GitOps From Gitea
 
-Open GitLab:
+Open Gitea:
 
 ```text
-http://gitlab.localhost:8081
+http://gitea.localhost:8081
 ```
 
-Edit the image tag in the `root/playground` repository:
+Edit the image tag in the `gitea_admin/playground` repository:
 
 ```yaml
 image: wil42/playground:v1
@@ -112,7 +112,7 @@ image: wil42/playground:v2
 Commit the change and wait for Argo CD to sync. You can force a refresh with:
 
 ```bash
-kubectl annotate application playground-gitlab -n argocd \
+kubectl annotate application playground-gitea -n argocd \
   argocd.argoproj.io/refresh=hard --overwrite
 ```
 
