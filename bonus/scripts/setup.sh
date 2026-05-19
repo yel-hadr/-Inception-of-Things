@@ -58,14 +58,24 @@ create_cluster() {
     echo "[INFO] k3d cluster '${CLUSTER_NAME}' already exists - skipping creation"
   else
     k3d cluster create "${CLUSTER_NAME}" \
+      --api-port "127.0.0.1:6551" \
       --port "8888:8888@loadbalancer" \
       --port "8081:80@loadbalancer"
   fi
 
-  until kubectl get nodes 2>/dev/null | grep -q "Ready"; do
-    echo "   still waiting for Kubernetes..."
-    sleep 5
-  done
+  echo "[INFO] Selecting K3d kubeconfig context..."
+  k3d kubeconfig merge "${CLUSTER_NAME}" --kubeconfig-switch-context
+  kubectl config set-cluster "k3d-${CLUSTER_NAME}" --server=https://127.0.0.1:6551 >/dev/null
+
+  echo "[INFO] Waiting for Kubernetes node to be ready..."
+  if ! kubectl wait --for=condition=Ready node --all --timeout=120s; then
+    echo "[ERROR] Kubernetes node did not become Ready in time."
+    echo "[INFO] Current nodes:"
+    kubectl get nodes -o wide || true
+    echo "[INFO] kube-system pods:"
+    kubectl get pods -n kube-system -o wide || true
+    exit 1
+  fi
 }
 
 ensure_hosts_entry() {

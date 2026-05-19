@@ -139,10 +139,10 @@ clean-p2:
 	cd p2 && vagrant destroy -f
 
 clean-p3:
-	-k3d cluster delete iotcluster
+	@if k3d cluster list 2>/dev/null | grep -q '^iotcluster\b'; then k3d cluster delete iotcluster; else echo "No iotcluster cluster to delete."; fi
 
 clean-bonus:
-	-k3d cluster delete iotbonus
+	@if k3d cluster list 2>/dev/null | grep -q '^iotbonus\b'; then k3d cluster delete iotbonus; else echo "No iotbonus cluster to delete."; fi
 
 status: status-p1 status-p2 status-k3d
 
