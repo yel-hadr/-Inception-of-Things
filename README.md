@@ -49,6 +49,42 @@ tools required by each part:
 
 The setup scripts install several tools automatically when they are missing.
 
+## Makefile Commands
+
+The root `Makefile` gives one command surface for running, checking, and cleaning
+each part:
+
+```bash
+make p1
+make p2
+make p3
+make bonus
+
+make check-p1
+make check-p2
+make check-p3
+make check-bonus
+
+make clean-p1
+make clean-p2
+make clean-p3
+make clean-bonus
+```
+
+`p3` and `bonus` both expose `localhost:8888`, so `make p3` removes the bonus
+K3d cluster first, and `make bonus` removes the P3 K3d cluster first.
+
+For full smoke tests, use:
+
+```bash
+make verify-p3
+make verify-bonus
+make verify
+```
+
+`make verify` runs every part in order and cleans between conflicting parts, so
+expect it to take a while.
+
 ## Docker Runner for P3 and Bonus
 
 If you already have Docker available on a Linux VM, you can run the K3d/Argo CD
